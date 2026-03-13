@@ -300,13 +300,23 @@ function InfoDisplay({
   );
 }
 
-export function DisplayClient({ payload }: { payload: DisplayPayload }) {
+export function DisplayClient({
+  displaySessionToken,
+  payload,
+}: {
+  displaySessionToken: string;
+  payload: DisplayPayload;
+}) {
   const router = useRouter();
   const now = useDisplayClock();
   const [heartbeatOk, setHeartbeatOk] = useState(true);
   const [sseConnected, setSseConnected] = useState(false);
   const [reconnectDelayMs, setReconnectDelayMs] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    document.cookie = `courtboard.display=${displaySessionToken}; path=/; max-age=43200; samesite=lax`;
+  }, [displaySessionToken]);
 
   useEffect(() => {
     setActiveIndex(0);
