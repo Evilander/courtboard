@@ -11,17 +11,9 @@ test.describe("Public API Endpoints", () => {
     expect(body.checks.runtime).toBe("ok");
   });
 
-  test("status endpoint returns system health", async ({ request }) => {
+  test("status endpoint requires authentication", async ({ request }) => {
     const response = await request.get("/api/status");
-    expect(response.ok()).toBe(true);
-
-    const body = await response.json();
-    expect(body.ok).toBe(true);
-    expect(body.service).toBe("courtboard");
-    expect(body.screens).toBeDefined();
-    expect(body.totals).toBeDefined();
-    expect(typeof body.totals.users).toBe("number");
-    expect(typeof body.totals.screens).toBe("number");
+    expect(response.status()).toBe(401);
   });
 
   test("schedules GET returns entries array", async ({ request }) => {

@@ -36,21 +36,13 @@ test.describe("Display Pages", () => {
   test("heartbeat API accepts an active display session", async ({ page }) => {
     await page.goto("/display/lobby-main");
 
-    const result = await page.evaluate(async () => {
-      const response = await fetch("/api/heartbeat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: "lobby-main" }),
-      });
-
-      return {
-        body: await response.json(),
-        status: response.status,
-      };
+    const response = await page.request.post("/api/heartbeat", {
+      data: { slug: "lobby-main" },
     });
 
-    expect(result.status).toBe(200);
-    expect(result.body.ok).toBe(true);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
   });
 
   test("heartbeat API rejects requests without a display session", async ({
