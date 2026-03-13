@@ -6,6 +6,13 @@ import {
   SCREEN_ZONES,
   USER_ROLES,
 } from "@/lib/db/schema";
+import { validatePasswordStrength, PASSWORD_POLICY_HINT } from "@/lib/auth/password";
+
+const strongPassword = z
+  .string()
+  .min(12)
+  .max(128)
+  .refine(validatePasswordStrength, { message: PASSWORD_POLICY_HINT });
 
 const optionalDateTime = z
   .union([z.string().datetime(), z.literal(""), z.null(), z.undefined()])
@@ -69,7 +76,7 @@ export const userCreateSchema = z.object({
   username: z.string().trim().min(1),
   email: z.string().email(),
   name: z.string().trim().min(1),
-  password: z.string().min(12),
+  password: strongPassword,
   role: z.enum(USER_ROLES),
   totpEnabled: z.coerce.boolean().optional().default(false),
 });
@@ -78,7 +85,7 @@ export const userUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   email: z.string().email().optional(),
   role: z.enum(USER_ROLES).optional(),
-  password: z.string().min(12).optional(),
+  password: strongPassword.optional(),
   totpEnabled: z.coerce.boolean().optional(),
   resetTotp: z.coerce.boolean().optional(),
 });
