@@ -7,7 +7,8 @@ export default function LoginPage({
     callbackUrl?: string;
   };
 }) {
-  const callbackUrl = searchParams?.callbackUrl || "/dashboard";
+  const raw = searchParams?.callbackUrl || "/dashboard";
+  const callbackUrl = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
