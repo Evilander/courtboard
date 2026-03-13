@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -9,6 +10,7 @@ import {
   Newspaper,
   Pencil,
   Plus,
+  Search,
   Trash2,
 } from "lucide-react";
 import type { ContentType, ContentZoneFilter } from "@/lib/db/schema";
@@ -26,9 +28,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { sanitizeContentHtml } from "@/lib/content-html";
 import { toDateTimeLocalValue } from "@/lib/time";
+
+const CONTENT_PAGE_SIZE = 12;
 
 type ContentPageClientProps = {
   canEdit: boolean;
@@ -128,6 +134,9 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterZone, setFilterZone] = useState<ContentZoneFilter | "">("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +178,32 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
   const previewHref = useMemo(
     () => getPreviewHref(form.zoneFilter, screens),
     [form.zoneFilter, screens],
+  );
+
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (filterZone) {
+      result = result.filter((item) => item.zoneFilter === filterZone);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (item) =>
+          item.title.toLowerCase().includes(q) ||
+          (item.body?.toLowerCase().includes(q) ?? false),
+      );
+    }
+    return result;
+  }, [items, searchQuery, filterZone]);
+
+  const contentTotalPages = Math.max(1, Math.ceil(filteredItems.length / CONTENT_PAGE_SIZE));
+  const paginatedItems = useMemo(
+    () =>
+      filteredItems.slice(
+        (page - 1) * CONTENT_PAGE_SIZE,
+        page * CONTENT_PAGE_SIZE,
+      ),
+    [filteredItems, page],
   );
 
   async function reload() {
@@ -255,8 +290,17 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
   }
 
   async function persistOrder(nextItems: SerializedContent[]) {
+    const changed = nextItems.filter((next) => {
+      const prev = items.find((p) => p.id === next.id);
+      return !prev || prev.displayOrder !== next.displayOrder;
+    });
+
+    if (changed.length === 0) {
+      return;
+    }
+
     await Promise.all(
-      nextItems.map((item) =>
+      changed.map((item) =>
         apiFetch(`/api/content/${item.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -330,7 +374,43 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
               Preview each content item and drag to persist display order.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="w-full max-w-xs">
+                <FormField label="Search">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                    <Input
+                      className="pl-9"
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        setPage(1);
+                      }}
+                      placeholder="Title or body..."
+                      value={searchQuery}
+                    />
+                  </div>
+                </FormField>
+              </div>
+              <div className="w-full max-w-[10rem]">
+                <FormField label="Zone">
+                  <Select
+                    onChange={(event) => {
+                      setFilterZone(event.target.value as ContentZoneFilter | "");
+                      setPage(1);
+                    }}
+                    value={filterZone}
+                  >
+                    <option value="">All zones</option>
+                    <option value="all">All screens</option>
+                    <option value="lobby">Lobby</option>
+                    <option value="courtroom">Courtroom</option>
+                    <option value="info">Info</option>
+                  </Select>
+                </FormField>
+              </div>
+            </div>
+
             {loading ? (
               <LoadingCard title="Loading content..." />
             ) : items.length === 0 ? (
@@ -338,11 +418,16 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
                 description="Create announcements, images, or HTML panels to populate displays."
                 title="No content items"
               />
+            ) : filteredItems.length === 0 ? (
+              <EmptyCard
+                description="No content matches your current filters."
+                title="No matching content"
+              />
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {items.map((item) => (
+                {paginatedItems.map((item) => (
                   <article
-                    className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                    className={`rounded-2xl border border-white/10 bg-black/20 p-4${item.expiresAt && new Date(item.expiresAt) < new Date() ? " opacity-50" : ""}`}
                     draggable={canEdit}
                     key={item.id}
                     onDragOver={(event) => event.preventDefault()}
@@ -364,15 +449,22 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
                     </div>
 
                     {item.type === "image" && item.imagePath ? (
-                      <img
-                        alt={item.title}
-                        className="mt-4 h-48 w-full rounded-2xl object-cover"
-                        src={item.imagePath}
-                      />
+                      <div className="relative mt-4 h-48 overflow-hidden rounded-2xl">
+                        <Image
+                          alt={item.title}
+                          className="object-cover"
+                          fill
+                          sizes="(max-width: 1024px) 100vw, 33vw"
+                          src={item.imagePath}
+                          unoptimized
+                        />
+                      </div>
                     ) : item.type === "html" ? (
                       <div
                         className="prose prose-invert mt-4 max-w-none rounded-2xl border border-white/10 bg-white/[0.03] p-4 prose-p:text-stone-300"
-                        dangerouslySetInnerHTML={{ __html: item.body ?? "" }}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeContentHtml(item.body),
+                        }}
                       />
                     ) : (
                       <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-stone-300">
@@ -382,7 +474,17 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
 
                     <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-stone-500">
                       <span>Order {item.displayOrder}</span>
-                      <span>{item.startsAt ? "Scheduled" : "Always on"}</span>
+                      {item.expiresAt && new Date(item.expiresAt) < new Date() ? (
+                        <span className="rounded-full bg-red-900/40 px-2 py-0.5 text-red-400 normal-case tracking-normal">
+                          Expired
+                        </span>
+                      ) : item.startsAt && new Date(item.startsAt) > new Date() ? (
+                        <span className="rounded-full bg-amber-900/40 px-2 py-0.5 text-amber-400 normal-case tracking-normal">
+                          Scheduled
+                        </span>
+                      ) : (
+                        <span>{item.startsAt ? "Active" : "Always on"}</span>
+                      )}
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -422,6 +524,19 @@ export function ContentPageClient({ canEdit }: ContentPageClientProps) {
                     </div>
                   </article>
                 ))}
+              </div>
+            )}
+
+            {filteredItems.length > 0 && (
+              <div className="flex items-center justify-between pt-2 text-sm text-stone-400">
+                <span>
+                  {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
+                </span>
+                <Pagination
+                  onPageChange={setPage}
+                  page={page}
+                  totalPages={contentTotalPages}
+                />
               </div>
             )}
           </CardContent>

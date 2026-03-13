@@ -46,7 +46,14 @@ export const contentItemSchema = z.object({
   type: z.enum(CONTENT_TYPES),
   title: z.string().trim().min(1),
   body: z.string().optional().nullable(),
-  imagePath: z.string().optional().nullable(),
+  imagePath: z
+    .string()
+    .regex(
+      /^\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$/,
+      "Image path must reference a valid uploaded file",
+    )
+    .optional()
+    .nullable(),
   displayOrder: z.coerce.number().int().min(0).default(0),
   zoneFilter: z.enum(CONTENT_ZONE_FILTERS),
   startsAt: optionalDateTime,
@@ -56,7 +63,12 @@ export const contentItemSchema = z.object({
 
 export const screenSchema = z.object({
   name: z.string().trim().min(1),
-  slug: z.string().trim().min(1),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, "Slug must be lowercase alphanumeric with optional hyphens"),
   zone: z.enum(SCREEN_ZONES),
   locationDescription: z.string().trim().optional().nullable(),
   rotationIntervalSeconds: z.coerce.number().int().min(5).max(600),

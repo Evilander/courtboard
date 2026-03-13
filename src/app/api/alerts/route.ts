@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRouteUser } from "@/lib/auth/session";
 import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
+import { readJsonBody } from "@/lib/api/request";
 import { createContentItem, clearEmergencyAlerts } from "@/lib/data/content";
 import { alertSchema } from "@/lib/validation";
 import { emitDisplayUpdate } from "@/lib/sse/bus";
@@ -15,7 +16,11 @@ export async function POST(request: Request) {
     return response;
   }
 
-  const json = await request.json();
+  const { data: json, response: invalidJsonResponse } = await readJsonBody(request);
+  if (invalidJsonResponse) {
+    return invalidJsonResponse;
+  }
+
   const parsed = alertSchema.safeParse(json);
   if (!parsed.success) {
     return validationErrorResponse(parsed.error);
@@ -57,8 +62,12 @@ export async function DELETE(request: Request) {
   }
 
   const url = new URL(request.url);
-  const zone = url.searchParams.get("zone") as "all" | "lobby" | "courtroom" | "info" | null;
-  const cleared = clearEmergencyAlerts(zone ?? "all");
+  const rawZone = url.searchParams.get("zone");
+  const validZones = ["all", "lobby", "courtroom", "info"] as const;
+  const zone = rawZone && validZones.includes(rawZone as typeof validZones[number])
+    ? (rawZone as typeof validZones[number])
+    : "all";
+  const cleared = clearEmergencyAlerts(zone);
 
   writeAuditLog({
     userId: user.id,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRouteUser } from "@/lib/auth/session";
 import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
+import { readJsonBody } from "@/lib/api/request";
 import {
   bulkUpdateSchedules,
   createScheduleEntry,
@@ -31,7 +32,11 @@ export async function POST(request: Request) {
     return response;
   }
 
-  const json = await request.json();
+  const { data: json, response: invalidJsonResponse } = await readJsonBody(request);
+  if (invalidJsonResponse) {
+    return invalidJsonResponse;
+  }
+
   const parsed = scheduleEntrySchema.safeParse(json);
   if (!parsed.success) {
     return validationErrorResponse(parsed.error);
@@ -63,7 +68,11 @@ export async function PATCH(request: Request) {
     return response;
   }
 
-  const json = await request.json();
+  const { data: json, response: invalidJsonResponse } = await readJsonBody(request);
+  if (invalidJsonResponse) {
+    return invalidJsonResponse;
+  }
+
   const parsed = scheduleBulkSchema.safeParse(json);
   if (!parsed.success) {
     return validationErrorResponse(parsed.error);

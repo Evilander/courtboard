@@ -28,7 +28,7 @@ import {
 import { apiFetch } from "@/lib/client/api";
 import type { ScreenZone } from "@/lib/db/schema";
 import type { SerializedScreen } from "@/lib/serializers";
-import { formatAdminDateTime } from "@/lib/time";
+import { formatAdminDateTime, formatRelativeLastSeen } from "@/lib/time";
 
 type ScreensPageClientProps = {
   canEdit: boolean;
@@ -247,9 +247,16 @@ export function ScreensPageClient({ canEdit }: ScreensPageClientProps) {
                       <TableCell>{screen.locationDescription || "Unassigned"}</TableCell>
                       <TableCell>{screen.rotationIntervalSeconds}s</TableCell>
                       <TableCell>
-                        <StatusBadge online={screen.online} />
+                        <StatusBadge health={screen.health} online={screen.online} />
                       </TableCell>
-                      <TableCell>{formatAdminDateTime(screen.lastSeenAt)}</TableCell>
+                      <TableCell>
+                        <div>
+                          <p>{formatAdminDateTime(screen.lastSeenAt)}</p>
+                          <p className="text-xs text-stone-400">
+                            {formatRelativeLastSeen(screen.lastSeenAt)}
+                          </p>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           <Button

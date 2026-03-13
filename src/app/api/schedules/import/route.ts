@@ -4,6 +4,7 @@ import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
 import { mapCsvRowsToSchedules, inferScheduleMapping, parseCsv } from "@/lib/csv";
 import { createScheduleEntry } from "@/lib/data/schedules";
+import { db } from "@/lib/db";
 import { emitDisplayUpdate } from "@/lib/sse/bus";
 import { badRequest } from "@/lib/api/response";
 
@@ -49,12 +50,14 @@ export async function POST(request: Request) {
   }
 
   const mappedRows = mapCsvRowsToSchedules(parsed.rows, mapping);
-  const imported = mappedRows.map((row) =>
-    createScheduleEntry({
-      ...row,
-      screenId: null,
-      estimatedDuration: row.estimatedDuration ?? null,
-    }),
+  const imported = db.transaction(() =>
+    mappedRows.map((row) =>
+      createScheduleEntry({
+        ...row,
+        screenId: null,
+        estimatedDuration: row.estimatedDuration ?? null,
+      }),
+    ),
   );
 
   writeAuditLog({

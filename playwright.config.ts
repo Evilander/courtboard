@@ -9,9 +9,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npx next dev -p 3010",
+    command: "node ./node_modules/next/dist/bin/next start -p 3010",
     port: 3010,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 60_000,
   },
   projects: [

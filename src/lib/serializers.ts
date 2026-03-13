@@ -5,7 +5,7 @@ import type {
   screens,
   users,
 } from "@/lib/db/schema";
-import { isScreenOnline } from "@/lib/time";
+import { getScreenHealth, isScreenOnline } from "@/lib/time";
 
 export type ScreenRecord = typeof screens.$inferSelect;
 export type ScheduleRecord = typeof scheduleEntries.$inferSelect;
@@ -19,6 +19,7 @@ export function serializeScreen(screen: ScreenRecord) {
     createdAt: screen.createdAt?.toISOString() ?? null,
     updatedAt: screen.updatedAt?.toISOString() ?? null,
     lastSeenAt: screen.lastSeenAt?.toISOString() ?? null,
+    health: getScreenHealth(screen.lastSeenAt),
     online: isScreenOnline(screen.lastSeenAt),
   };
 }

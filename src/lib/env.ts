@@ -92,6 +92,10 @@ export function getAuthRateLimitMaxAttempts() {
   return parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX_ATTEMPTS, 10);
 }
 
+export function getUploadMaxBytes() {
+  return parsePositiveInteger(process.env.UPLOAD_MAX_BYTES, 10 * 1024 * 1024);
+}
+
 export function getInitialAdminSeed() {
   const password = process.env.INITIAL_ADMIN_PASSWORD?.trim();
   if (!password) {

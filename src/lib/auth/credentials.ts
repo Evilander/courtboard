@@ -160,7 +160,6 @@ export async function authenticateUser(
 
   if (user.totpEnabled) {
     if (!totp) {
-      recordFailure(user, ipAddress, "missing_totp");
       throw new TotpRequiredError();
     }
 

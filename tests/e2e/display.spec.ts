@@ -13,7 +13,7 @@ test.describe("Display Pages", () => {
 
     // Connection status text appears somewhere on the page
     await expect(
-      page.getByText(/Connected|Syncing|Offline/),
+      page.getByText(/Connected|Syncing|Offline|Reconnecting/),
     ).toBeVisible({ timeout: 15000 });
   });
 
@@ -33,21 +33,59 @@ test.describe("Display Pages", () => {
     expect(response?.status()).toBe(404);
   });
 
-  test("heartbeat API accepts screen slug", async ({ request }) => {
+  test("heartbeat API accepts an active display session", async ({ page }) => {
+    await page.goto("/display/lobby-main");
+
+    const result = await page.evaluate(async () => {
+      const response = await fetch("/api/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: "lobby-main" }),
+      });
+
+      return {
+        body: await response.json(),
+        status: response.status,
+      };
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.body.ok).toBe(true);
+  });
+
+  test("heartbeat API rejects requests without a display session", async ({
+    request,
+  }) => {
     const response = await request.post("/api/heartbeat", {
       data: { slug: "lobby-main" },
     });
 
-    expect(response.ok()).toBe(true);
-    const body = await response.json();
-    expect(body.ok).toBe(true);
+    expect(response.status()).toBe(403);
   });
 
-  test("heartbeat API rejects unknown slug", async ({ request }) => {
-    const response = await request.post("/api/heartbeat", {
+  test("heartbeat API rejects unknown slug", async ({ page }) => {
+    await page.goto("/display/lobby-main");
+
+    const response = await page.request.post("/api/heartbeat", {
       data: { slug: "nonexistent" },
     });
 
     expect(response.status()).toBe(404);
+  });
+
+  test("heartbeat API rejects mismatched display sessions", async ({ page }) => {
+    await page.goto("/display/lobby-main");
+
+    const result = await page.evaluate(async () => {
+      const response = await fetch("/api/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: "courtroom-1" }),
+      });
+
+      return response.status;
+    });
+
+    expect(result).toBe(403);
   });
 });

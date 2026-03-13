@@ -47,12 +47,29 @@ export async function GET(request: Request) {
         ),
       );
 
+      let closed = false;
+
+      function safeEnqueue(data: Uint8Array) {
+        if (closed) {
+          return false;
+        }
+
+        try {
+          controller.enqueue(data);
+          return true;
+        } catch {
+          closed = true;
+          cleanup();
+          return false;
+        }
+      }
+
       const unsubscribe = subscribeDisplayUpdates((event) => {
         if (!shouldDeliverEvent(event, screen.slug, screen.zone)) {
           return;
         }
 
-        controller.enqueue(
+        safeEnqueue(
           encoder.encode(
             encodeEvent("update", {
               ...event,
@@ -63,7 +80,7 @@ export async function GET(request: Request) {
       });
 
       const ping = setInterval(() => {
-        controller.enqueue(
+        safeEnqueue(
           encoder.encode(
             encodeEvent("ping", {
               slug: screen.slug,
@@ -73,13 +90,20 @@ export async function GET(request: Request) {
         );
       }, 15_000);
 
-      const abortHandler = () => {
+      function cleanup() {
         clearInterval(ping);
         unsubscribe();
-        controller.close();
-      };
+        if (!closed) {
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        }
+      }
 
-      request.signal.addEventListener("abort", abortHandler, { once: true });
+      request.signal.addEventListener("abort", cleanup, { once: true });
     },
   });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRouteUser } from "@/lib/auth/session";
 import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
+import { readJsonBody } from "@/lib/api/request";
 import {
   deleteScreen,
   getScreenById,
@@ -15,9 +16,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const screen = getScreenById(params.id);
+  const { id } = await params;
+  const screen = getScreenById(id);
   if (!screen) {
     return NextResponse.json({ error: "Screen not found" }, { status: 404 });
   }
@@ -27,20 +29,25 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const { response, user } = await requireRouteUser("editor");
   if (response || !user) {
     return response;
   }
 
-  const json = await request.json();
+  const { data: json, response: invalidJsonResponse } = await readJsonBody(request);
+  if (invalidJsonResponse) {
+    return invalidJsonResponse;
+  }
+
   const parsed = screenSchema.safeParse(json);
   if (!parsed.success) {
     return validationErrorResponse(parsed.error);
   }
 
-  const screen = updateScreen(params.id, {
+  const screen = updateScreen(id, {
     ...parsed.data,
     locationDescription: parsed.data.locationDescription ?? null,
   });
@@ -64,14 +71,15 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const { response, user } = await requireRouteUser("editor");
   if (response || !user) {
     return response;
   }
 
-  const screen = deleteScreen(params.id);
+  const screen = deleteScreen(id);
   if (!screen) {
     return NextResponse.json({ error: "Screen not found" }, { status: 404 });
   }

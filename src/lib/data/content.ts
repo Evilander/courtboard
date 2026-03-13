@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, or, isNull, lte, gte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   contentItems,
@@ -40,18 +40,22 @@ export function getContentItemById(id: string) {
 
 export function listActiveContentForZone(zone: ContentZoneFilter) {
   const now = new Date();
+  const where = [];
+
+  if (zone !== "all") {
+    where.push(
+      or(eq(contentItems.zoneFilter, "all"), eq(contentItems.zoneFilter, zone))!,
+    );
+  }
+  where.push(or(isNull(contentItems.startsAt), lte(contentItems.startsAt, now))!);
+  where.push(or(isNull(contentItems.expiresAt), gte(contentItems.expiresAt, now))!);
+
   const rows = db
     .select()
     .from(contentItems)
+    .where(and(...where))
     .orderBy(asc(contentItems.displayOrder), desc(contentItems.createdAt))
-    .all()
-    .filter((item) => {
-      const zoneMatch =
-        item.zoneFilter === "all" || zone === "all" || item.zoneFilter === zone;
-      const startOk = !item.startsAt || item.startsAt.getTime() <= now.getTime();
-      const endOk = !item.expiresAt || item.expiresAt.getTime() >= now.getTime();
-      return zoneMatch && startOk && endOk;
-    });
+    .all();
 
   return rows.map(serializeContent);
 }

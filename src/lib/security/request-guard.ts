@@ -30,6 +30,22 @@ function getRateLimitStore() {
   return globalForRateLimit.__courtboardRateLimitStore;
 }
 
+export function resetRateLimitStore() {
+  getRateLimitStore().clear();
+}
+
+function shouldRateLimitAuthRequest(request: NextRequest) {
+  if (request.method !== "POST") {
+    return false;
+  }
+
+  const pathname = request.nextUrl.pathname;
+  return (
+    pathname === "/api/auth/callback/credentials" ||
+    pathname === "/api/auth/signin/credentials"
+  );
+}
+
 function getRateLimitResponse(
   request: NextRequest,
   limit: number,
@@ -38,6 +54,15 @@ function getRateLimitResponse(
 ) {
   const store = getRateLimitStore();
   const now = Date.now();
+
+  if (store.size >= 100) {
+    for (const [entryKey, entry] of store.entries()) {
+      if (entry.resetAt <= now) {
+        store.delete(entryKey);
+      }
+    }
+  }
+
   const ipAddress = getIpFromHeaders(request.headers) ?? "unknown";
   const key = `${scope}:${ipAddress}`;
   const existing = store.get(key);
@@ -192,7 +217,7 @@ function validateCsrf(request: NextRequest) {
 export function guardRequest(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/api/auth/") || pathname === "/login") {
+  if (shouldRateLimitAuthRequest(request)) {
     return getRateLimitResponse(
       request,
       getAuthRateLimitMaxAttempts(),

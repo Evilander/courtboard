@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { AdminIdleSession } from "@/components/admin/admin-idle-session";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { hasRequiredRole } from "@/lib/auth/rbac";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 type AdminShellProps = {
   children: React.ReactNode;
+  idleTimeoutMinutes: number;
   user: {
     name?: string | null;
     username?: string | null;
@@ -80,7 +82,11 @@ const NAV_ITEMS = [
   },
 ] as const;
 
-export function AdminShell({ children, user }: AdminShellProps) {
+export function AdminShell({
+  children,
+  idleTimeoutMinutes,
+  user,
+}: AdminShellProps) {
   const pathname = usePathname();
   const visibleItems = NAV_ITEMS.filter((item) =>
     hasRequiredRole(user.role, item.role),
@@ -88,6 +94,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.08),transparent_28%),linear-gradient(180deg,#111111_0%,#050505_100%)]">
+      <AdminIdleSession idleTimeoutMinutes={idleTimeoutMinutes} />
       <div className="mx-auto grid min-h-screen max-w-[1800px] lg:grid-cols-[280px,1fr]">
         <aside className="border-b border-white/10 bg-black/25 backdrop-blur lg:border-b-0 lg:border-r">
           <div className="flex h-full flex-col px-5 py-6">
@@ -107,7 +114,7 @@ export function AdminShell({ children, user }: AdminShellProps) {
             <nav className="mt-6 space-y-1">
               {visibleItems.map((item) => {
                 const isActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  pathname === item.href || pathname?.startsWith(`${item.href}/`);
                 const Icon = item.icon;
 
                 return (

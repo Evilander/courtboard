@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRouteUser } from "@/lib/auth/session";
 import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
-import { saveUploadedImage } from "@/lib/uploads";
+import { saveUploadedImage, UploadValidationError } from "@/lib/uploads";
 import { badRequest } from "@/lib/api/response";
 
 export const runtime = "nodejs";
@@ -20,7 +20,19 @@ export async function POST(request: Request) {
     return badRequest("Image file is required.");
   }
 
-  const imagePath = await saveUploadedImage(file);
+  let imagePath: string;
+  try {
+    imagePath = await saveUploadedImage(file);
+  } catch (error) {
+    if (error instanceof UploadValidationError) {
+      return badRequest(error.message);
+    }
+
+    return NextResponse.json(
+      { error: "Unable to process the uploaded image." },
+      { status: 500 },
+    );
+  }
 
   writeAuditLog({
     userId: user.id,
