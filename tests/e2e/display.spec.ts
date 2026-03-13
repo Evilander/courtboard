@@ -35,6 +35,9 @@ test.describe("Display Pages", () => {
 
   test("heartbeat API accepts an active display session", async ({ page }) => {
     await page.goto("/display/lobby-main");
+    await page.waitForFunction(() =>
+      document.cookie.includes("courtboard.display="),
+    );
 
     const response = await page.request.post("/api/heartbeat", {
       data: { slug: "lobby-main" },
@@ -57,6 +60,9 @@ test.describe("Display Pages", () => {
 
   test("heartbeat API rejects unknown slug", async ({ page }) => {
     await page.goto("/display/lobby-main");
+    await page.waitForFunction(() =>
+      document.cookie.includes("courtboard.display="),
+    );
 
     const response = await page.request.post("/api/heartbeat", {
       data: { slug: "nonexistent" },
@@ -67,6 +73,9 @@ test.describe("Display Pages", () => {
 
   test("heartbeat API rejects mismatched display sessions", async ({ page }) => {
     await page.goto("/display/lobby-main");
+    await page.waitForFunction(() =>
+      document.cookie.includes("courtboard.display="),
+    );
 
     const result = await page.evaluate(async () => {
       const response = await fetch("/api/heartbeat", {

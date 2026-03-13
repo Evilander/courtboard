@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDisplayPayload } from "@/lib/display";
+import { createDisplaySessionToken } from "@/lib/security/display-session";
 import { DisplayClient } from "./display-client";
 
 export const dynamic = "force-dynamic";
@@ -17,5 +18,7 @@ export default async function DisplayPage({
     notFound();
   }
 
-  return <DisplayClient payload={payload} />;
+  const displaySessionToken = await createDisplaySessionToken(slug);
+
+  return <DisplayClient displaySessionToken={displaySessionToken} payload={payload} />;
 }
