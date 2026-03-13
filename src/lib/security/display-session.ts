@@ -116,7 +116,7 @@ export async function ensureDisplaySessionCookie(
     httpOnly: true,
     maxAge: DISPLAY_SESSION_MAX_AGE_SECONDS,
     name: DISPLAY_SESSION_COOKIE_NAME,
-    path: "/api/heartbeat",
+    path: "/",
     sameSite: "lax",
     secure: isHttps,
     value: await createDisplaySessionToken(slug),
