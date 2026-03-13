@@ -89,7 +89,7 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
       "frame-ancestors 'none'",
       "img-src 'self' data: blob: https:",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "connect-src 'self'",
     ].join("; "),

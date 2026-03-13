@@ -93,13 +93,18 @@ export function getAuthRateLimitMaxAttempts() {
 }
 
 export function getInitialAdminSeed() {
+  const password = process.env.INITIAL_ADMIN_PASSWORD?.trim();
+  if (!password) {
+    throw new Error(
+      "INITIAL_ADMIN_PASSWORD must be set before running the seed script.",
+    );
+  }
+
   return {
     username: process.env.INITIAL_ADMIN_USERNAME?.trim() || "admin",
     email:
       process.env.INITIAL_ADMIN_EMAIL?.trim() || "admin@courtboard.local",
-    password:
-      process.env.INITIAL_ADMIN_PASSWORD?.trim() ||
-      "ChangeMeWithAStrongPassword123!",
+    password,
     totpSecret: process.env.INITIAL_ADMIN_TOTP_SECRET?.trim() || null,
   };
 }
