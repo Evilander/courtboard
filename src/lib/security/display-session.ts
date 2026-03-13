@@ -112,13 +112,16 @@ export async function ensureDisplaySessionCookie(
     request.nextUrl.protocol === "https:" ||
     request.headers.get("x-forwarded-proto") === "https";
 
-  response.cookies.set({
-    httpOnly: true,
-    maxAge: DISPLAY_SESSION_MAX_AGE_SECONDS,
-    name: DISPLAY_SESSION_COOKIE_NAME,
-    path: "/",
-    sameSite: "lax",
-    secure: isHttps,
-    value: await createDisplaySessionToken(slug),
-  });
+  const token = await createDisplaySessionToken(slug);
+  const parts = [
+    `${DISPLAY_SESSION_COOKIE_NAME}=${token}`,
+    `Path=/`,
+    `Max-Age=${DISPLAY_SESSION_MAX_AGE_SECONDS}`,
+    `HttpOnly`,
+    `SameSite=Lax`,
+  ];
+  if (isHttps) {
+    parts.push("Secure");
+  }
+  response.headers.append("Set-Cookie", parts.join("; "));
 }
