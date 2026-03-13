@@ -131,11 +131,23 @@ export function MetricCard({
   );
 }
 
-export function StatusBadge({ online }: { online: boolean }) {
+export function StatusBadge({
+  online,
+  health,
+}: {
+  online: boolean;
+  health?: "online" | "stale" | "offline";
+}) {
+  const state = health ?? (online ? "online" : "offline");
+  const label =
+    state === "online" ? "Online" : state === "stale" ? "Stale" : "Offline";
+  const variant =
+    state === "online" ? "success" : state === "stale" ? "warning" : "danger";
+
   return (
-    <Badge className="gap-2" variant={online ? "success" : "danger"}>
+    <Badge className="gap-2" variant={variant}>
       <span className="h-2 w-2 rounded-full bg-current" />
-      {online ? "Online" : "Offline"}
+      {label}
     </Badge>
   );
 }

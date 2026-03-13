@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import type { SerializedAudit, SerializedUser } from "@/lib/serializers";
 import { apiFetch } from "@/lib/client/api";
 import { AdminPageHeader, ErrorNotice, FormField, LoadingCard } from "@/components/admin/shared";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -213,28 +213,15 @@ export function AuditLogPageClient() {
                 </TableBody>
               </Table>
 
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-stone-400">
-                  Page {page} of {totalPages}
-                </p>
-                <div className="flex gap-3">
-                  <Button
-                    disabled={page <= 1}
-                    onClick={() => setPage((current) => current - 1)}
-                    type="button"
-                    variant="outline"
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((current) => current + 1)}
-                    type="button"
-                    variant="outline"
-                  >
-                    Next
-                  </Button>
-                </div>
+              <div className="mt-4 flex items-center justify-between text-sm text-stone-400">
+                <span>
+                  {total} {total === 1 ? "record" : "records"} — page {page} of {totalPages}
+                </span>
+                <Pagination
+                  onPageChange={setPage}
+                  page={page}
+                  totalPages={totalPages}
+                />
               </div>
             </>
           )}

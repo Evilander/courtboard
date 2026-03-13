@@ -2,11 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { setupTestDatabase, teardownTestDatabase } from "./helpers/test-db";
 
 describe("Screen Management & Heartbeat", () => {
-  let db: ReturnType<typeof setupTestDatabase>["db"];
-
   beforeAll(() => {
-    const result = setupTestDatabase();
-    db = result.db;
+    setupTestDatabase();
   });
 
   afterAll(() => {

@@ -4,14 +4,15 @@ import { DisplayClient } from "./display-client";
 
 export const dynamic = "force-dynamic";
 
-export default function DisplayPage({
+export default async function DisplayPage({
   params,
 }: {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }) {
-  const payload = getDisplayPayload(params.slug);
+  const { slug } = await params;
+  const payload = getDisplayPayload(slug);
   if (!payload) {
     notFound();
   }

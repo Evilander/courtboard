@@ -18,7 +18,7 @@ import {
   StatusBadge,
 } from "@/components/admin/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatAdminDateTime, toDateKey } from "@/lib/time";
+import { formatAdminDateTime, formatRelativeLastSeen, toDateKey } from "@/lib/time";
 
 type DashboardPageClientProps = {
   canEdit: boolean;
@@ -176,12 +176,15 @@ export function DashboardPageClient({
                               {screen.locationDescription || screen.slug}
                             </p>
                           </div>
-                          <StatusBadge online={screen.online} />
+                          <StatusBadge health={screen.health} online={screen.online} />
                         </div>
                         <div className="mt-4 flex items-center justify-between text-sm text-stone-400">
                           <span>Last heartbeat</span>
                           <span>{formatAdminDateTime(screen.lastSeenAt)}</span>
                         </div>
+                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-stone-500">
+                          {formatRelativeLastSeen(screen.lastSeenAt)}
+                        </p>
                         <div className="mt-4">
                           <Link
                             className="inline-flex items-center gap-2 text-sm font-medium text-amber-300 hover:text-amber-200"

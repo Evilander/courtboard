@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRouteUser } from "@/lib/auth/session";
 import { getIpFromHeaders } from "@/lib/request/ip";
 import { writeAuditLog } from "@/lib/audit";
+import { readJsonBody } from "@/lib/api/request";
 import {
   deleteContentItem,
   getContentItemById,
@@ -15,9 +16,10 @@ export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const item = getContentItemById(params.id);
+  const { id } = await params;
+  const item = getContentItemById(id);
   if (!item) {
     return NextResponse.json({ error: "Content item not found" }, { status: 404 });
   }
@@ -27,20 +29,25 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const { response, user } = await requireRouteUser("editor");
   if (response || !user) {
     return response;
   }
 
-  const json = await request.json();
+  const { data: json, response: invalidJsonResponse } = await readJsonBody(request);
+  if (invalidJsonResponse) {
+    return invalidJsonResponse;
+  }
+
   const parsed = contentItemSchema.safeParse(json);
   if (!parsed.success) {
     return validationErrorResponse(parsed.error);
   }
 
-  const item = updateContentItem(params.id, {
+  const item = updateContentItem(id, {
     ...parsed.data,
     body: parsed.data.body ?? null,
     imagePath: parsed.data.imagePath ?? null,
@@ -68,14 +75,15 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const { response, user } = await requireRouteUser("editor");
   if (response || !user) {
     return response;
   }
 
-  const item = deleteContentItem(params.id);
+  const item = deleteContentItem(id);
   if (!item) {
     return NextResponse.json({ error: "Content item not found" }, { status: 404 });
   }

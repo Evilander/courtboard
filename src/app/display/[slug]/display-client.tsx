@@ -1,12 +1,21 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import DOMPurify from "isomorphic-dompurify";
 import { Building2, Clock3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { DisplayPayload } from "@/lib/display";
+import { sanitizeContentHtml } from "@/lib/content-html";
 import { formatDisplayTime, formatLongDisplayDate, HEARTBEAT_INTERVAL_MS } from "@/lib/time";
+
+function parseUpdateEventPayload(event: MessageEvent) {
+  try {
+    return JSON.parse(event.data) as { type?: string };
+  } catch {
+    return null;
+  }
+}
 
 function statusVariant(status: string) {
   switch (status) {
@@ -37,10 +46,13 @@ function useDisplayClock() {
 function NoSessionsState({ courthouseName }: { courthouseName: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-12 text-center">
-      <img
+      <Image
         alt="Courthouse silhouette"
         className="h-32 w-32 opacity-70"
+        height={128}
         src="/courthouse-silhouette.svg"
+        unoptimized
+        width={128}
       />
       <div className="space-y-3">
         <p className="text-sm uppercase tracking-[0.4em] text-amber-300">
@@ -134,11 +146,16 @@ function LobbyDisplay({ payload }: { payload: DisplayPayload }) {
                 {item.title}
               </h3>
               {item.imagePath ? (
-                <img
-                  alt={item.title}
-                  className="mt-4 h-[180px] w-full rounded-2xl object-cover"
-                  src={item.imagePath}
-                />
+                <div className="relative mt-4 h-[180px] overflow-hidden rounded-2xl">
+                  <Image
+                    alt={item.title}
+                    className="object-cover"
+                    fill
+                    sizes="(max-width: 1280px) 100vw, 30vw"
+                    src={item.imagePath}
+                    unoptimized
+                  />
+                </div>
               ) : (
                 <p className="mt-4 text-base leading-7 text-stone-300">
                   {item.body}
@@ -245,11 +262,16 @@ function InfoDisplay({
     <section className="flex h-full items-center justify-center rounded-[2rem] border border-white/10 bg-black/20 p-8">
       {activeItem.type === "image" && activeItem.imagePath ? (
         <div className="grid h-full w-full grid-rows-[1fr,auto] gap-6">
-          <img
-            alt={activeItem.title}
-            className="h-full w-full rounded-[1.5rem] object-contain"
-            src={activeItem.imagePath}
-          />
+          <div className="relative h-full w-full overflow-hidden rounded-[1.5rem]">
+            <Image
+              alt={activeItem.title}
+              className="object-contain"
+              fill
+              sizes="100vw"
+              src={activeItem.imagePath}
+              unoptimized
+            />
+          </div>
           <div className="text-center">
             <h2 className="text-3xl font-semibold text-white">{activeItem.title}</h2>
             {activeItem.body ? (
@@ -259,7 +281,7 @@ function InfoDisplay({
         </div>
       ) : activeItem.type === "html" ? (
         <div className="prose prose-invert max-w-none text-center prose-headings:text-white prose-p:text-stone-200">
-          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(activeItem.body ?? "") }} />
+          <div dangerouslySetInnerHTML={{ __html: sanitizeContentHtml(activeItem.body) }} />
         </div>
       ) : (
         <div className="mx-auto max-w-4xl text-center">
@@ -283,6 +305,7 @@ export function DisplayClient({ payload }: { payload: DisplayPayload }) {
   const now = useDisplayClock();
   const [heartbeatOk, setHeartbeatOk] = useState(true);
   const [sseConnected, setSseConnected] = useState(false);
+  const [reconnectDelayMs, setReconnectDelayMs] = useState<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -306,18 +329,66 @@ export function DisplayClient({ payload }: { payload: DisplayPayload }) {
   ]);
 
   useEffect(() => {
-    const stream = new EventSource(
-      `/api/sse/display?screen=${encodeURIComponent(payload.screen.slug)}`,
-    );
+    let cancelled = false;
+    let retryDelayMs = 1_000;
+    let retryTimer: number | null = null;
+    let stream: EventSource | null = null;
 
-    stream.addEventListener("open", () => setSseConnected(true));
-    stream.addEventListener("error", () => setSseConnected(false));
-    stream.addEventListener("update", () => {
-      router.refresh();
-    });
+    const connect = () => {
+      if (cancelled) {
+        return;
+      }
+
+      stream = new EventSource(
+        `/api/sse/display?screen=${encodeURIComponent(payload.screen.slug)}`,
+      );
+
+      stream.addEventListener("open", () => {
+        retryDelayMs = 1_000;
+        setReconnectDelayMs(null);
+        setSseConnected(true);
+      });
+
+      stream.addEventListener("error", () => {
+        setSseConnected(false);
+        stream?.close();
+        stream = null;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (retryTimer !== null) {
+          window.clearTimeout(retryTimer);
+        }
+        const nextDelayMs = retryDelayMs;
+        setReconnectDelayMs(nextDelayMs);
+        retryTimer = window.setTimeout(() => {
+          retryDelayMs = Math.min(retryDelayMs * 2, 30_000);
+          connect();
+        }, nextDelayMs);
+      });
+
+      stream.addEventListener("update", (event) => {
+        const payload = parseUpdateEventPayload(event);
+        if (payload?.type === "heartbeat.updated") {
+          return;
+        }
+
+        setReconnectDelayMs(null);
+        router.refresh();
+      });
+    };
+
+    connect();
 
     return () => {
-      stream.close();
+      cancelled = true;
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
+      stream?.close();
+      setReconnectDelayMs(null);
       setSseConnected(false);
     };
   }, [payload.screen.slug, router]);
@@ -327,11 +398,17 @@ export function DisplayClient({ payload }: { payload: DisplayPayload }) {
 
     async function sendHeartbeat() {
       try {
-        await fetch("/api/heartbeat", {
+        const response = await fetch("/api/heartbeat", {
+          cache: "no-store",
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slug: payload.screen.slug }),
         });
+
+        if (!response.ok) {
+          throw new Error("heartbeat_failed");
+        }
+
         if (active) {
           setHeartbeatOk(true);
         }
@@ -355,12 +432,32 @@ export function DisplayClient({ payload }: { payload: DisplayPayload }) {
       return "danger";
     }
 
+    if (reconnectDelayMs !== null) {
+      return "warning";
+    }
+
     if (!sseConnected) {
       return "warning";
     }
 
     return "success";
-  }, [heartbeatOk, sseConnected]);
+  }, [heartbeatOk, reconnectDelayMs, sseConnected]);
+
+  const connectionLabel = useMemo(() => {
+    if (!heartbeatOk) {
+      return "Offline";
+    }
+
+    if (sseConnected) {
+      return "Connected";
+    }
+
+    if (reconnectDelayMs !== null) {
+      return `Reconnecting in ${Math.ceil(reconnectDelayMs / 1000)}s`;
+    }
+
+    return "Syncing";
+  }, [heartbeatOk, reconnectDelayMs, sseConnected]);
 
   return (
     <main className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#050608] text-stone-100">
@@ -406,7 +503,7 @@ export function DisplayClient({ payload }: { payload: DisplayPayload }) {
       <div className="absolute bottom-5 right-5">
         <Badge className="gap-2 px-3 py-2" variant={heartbeatVariant}>
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-current" />
-          {heartbeatOk && sseConnected ? "Connected" : heartbeatOk ? "Syncing" : "Offline"}
+          {connectionLabel}
         </Badge>
       </div>
 

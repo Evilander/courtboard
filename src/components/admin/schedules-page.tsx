@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   Pencil,
   Plus,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -35,6 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toDateKey } from "@/lib/time";
+
+const SCHEDULE_PAGE_SIZE = 20;
 
 type SchedulesPageClientProps = {
   canEdit: boolean;
@@ -120,6 +124,8 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
     null,
   );
   const [importMapping, setImportMapping] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,14 +179,39 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
 
     void loadSchedules();
     setForm((current) => ({ ...current, date: selectedDate }));
+    setPage(1);
     return () => {
       cancelled = true;
     };
   }, [selectedDate]);
 
+  const filteredEntries = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return entries;
+    }
+    const q = searchQuery.toLowerCase();
+    return entries.filter(
+      (entry) =>
+        entry.courtroom.toLowerCase().includes(q) ||
+        entry.judgeName.toLowerCase().includes(q) ||
+        entry.caseNumber.toLowerCase().includes(q) ||
+        entry.caseTitle.toLowerCase().includes(q),
+    );
+  }, [entries, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / SCHEDULE_PAGE_SIZE));
+  const paginatedEntries = useMemo(
+    () =>
+      filteredEntries.slice(
+        (page - 1) * SCHEDULE_PAGE_SIZE,
+        page * SCHEDULE_PAGE_SIZE,
+      ),
+    [filteredEntries, page],
+  );
+
   const allSelected = useMemo(
-    () => entries.length > 0 && selectedIds.length === entries.length,
-    [entries.length, selectedIds.length],
+    () => paginatedEntries.length > 0 && selectedIds.length === paginatedEntries.length,
+    [paginatedEntries.length, selectedIds.length],
   );
 
   async function reloadEntries() {
@@ -397,14 +428,32 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div className="w-full max-w-xs">
-                <FormField label="Schedule date">
-                  <Input
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    type="date"
-                    value={selectedDate}
-                  />
-                </FormField>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="w-full max-w-[11rem]">
+                  <FormField label="Schedule date">
+                    <Input
+                      onChange={(event) => setSelectedDate(event.target.value)}
+                      type="date"
+                      value={selectedDate}
+                    />
+                  </FormField>
+                </div>
+                <div className="w-full max-w-xs">
+                  <FormField label="Search">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                      <Input
+                        className="pl-9"
+                        onChange={(event) => {
+                          setSearchQuery(event.target.value);
+                          setPage(1);
+                        }}
+                        placeholder="Judge, courtroom, case..."
+                        value={searchQuery}
+                      />
+                    </div>
+                  </FormField>
+                </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -435,6 +484,11 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
                 description="There are no cases on the docket for this date."
                 title="No schedule entries"
               />
+            ) : filteredEntries.length === 0 ? (
+              <EmptyCard
+                description={`No results match "${searchQuery}".`}
+                title="No matching entries"
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -444,7 +498,9 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
                         checked={allSelected}
                         onChange={(event) =>
                           setSelectedIds(
-                            event.target.checked ? entries.map((entry) => entry.id) : [],
+                            event.target.checked
+                              ? paginatedEntries.map((entry) => entry.id)
+                              : [],
                           )
                         }
                       />
@@ -459,7 +515,7 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((entry) => (
+                  {paginatedEntries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>
                         <Checkbox
@@ -513,6 +569,20 @@ export function SchedulesPageClient({ canEdit }: SchedulesPageClientProps) {
                   ))}
                 </TableBody>
               </Table>
+            )}
+
+            {filteredEntries.length > 0 && (
+              <div className="flex items-center justify-between pt-2 text-sm text-stone-400">
+                <span>
+                  {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+                  {searchQuery.trim() ? ` matching "${searchQuery}"` : ""}
+                </span>
+                <Pagination
+                  onPageChange={setPage}
+                  page={page}
+                  totalPages={totalPages}
+                />
+              </div>
             )}
           </CardContent>
         </Card>

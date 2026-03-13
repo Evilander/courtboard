@@ -1,9 +1,18 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { serializeUser } from "@/lib/serializers";
 import { createTotpSetup } from "@/lib/auth/totp";
 import { hashPassword } from "@/lib/auth/password";
+
+export function countAdmins(): number {
+  const result = db
+    .select({ count: sql<number>`count(*)` })
+    .from(users)
+    .where(eq(users.role, "admin"))
+    .get();
+  return result?.count ?? 0;
+}
 
 export async function listUsers() {
   const rows = db.select().from(users).orderBy(asc(users.username)).all();

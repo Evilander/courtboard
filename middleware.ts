@@ -2,6 +2,10 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import {
+  ensureDisplaySessionCookie,
+  getDisplaySlugFromPath,
+} from "@/lib/security/display-session";
+import {
   finalizeResponse,
   guardRequest,
 } from "@/lib/security/request-guard";
@@ -9,7 +13,7 @@ import { isAdminApiPath, isAdminPagePath } from "@/lib/security/routes";
 
 const { auth } = NextAuth(authConfig);
 
-export default auth((request) => {
+export default auth(async (request) => {
   const blockedResponse = guardRequest(request);
   if (blockedResponse) {
     return finalizeResponse(blockedResponse, request);
@@ -33,11 +37,19 @@ export default auth((request) => {
     return finalizeResponse(NextResponse.redirect(signInUrl), request);
   }
 
-  return finalizeResponse(NextResponse.next(), request);
+  const response = NextResponse.next();
+  const displaySlug = getDisplaySlugFromPath(pathname);
+
+  if (displaySlug) {
+    await ensureDisplaySessionCookie(response, request, displaySlug);
+  }
+
+  return finalizeResponse(response, request);
 });
 
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$).*)",
   ],
+  runtime: "nodejs",
 };

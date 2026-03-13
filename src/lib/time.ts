@@ -1,5 +1,8 @@
 export const HEARTBEAT_INTERVAL_MS = 60_000;
 export const SCREEN_ONLINE_WINDOW_MS = 2 * 60_000;
+export const SCREEN_STALE_WINDOW_MS = 10 * 60_000;
+
+export type ScreenHealth = "online" | "stale" | "offline";
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -19,6 +22,52 @@ export function isScreenOnline(lastSeenAt?: Date | null) {
   }
 
   return Date.now() - lastSeenAt.getTime() <= SCREEN_ONLINE_WINDOW_MS;
+}
+
+export function getScreenHealth(lastSeenAt?: Date | null): ScreenHealth {
+  if (!lastSeenAt) {
+    return "offline";
+  }
+
+  const ageMs = Date.now() - lastSeenAt.getTime();
+  if (ageMs <= SCREEN_ONLINE_WINDOW_MS) {
+    return "online";
+  }
+
+  if (ageMs <= SCREEN_STALE_WINDOW_MS) {
+    return "stale";
+  }
+
+  return "offline";
+}
+
+export function formatRelativeLastSeen(value?: string | Date | null) {
+  if (!value) {
+    return "No heartbeat recorded";
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Invalid heartbeat";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 60_000) {
+    return "Less than a minute ago";
+  }
+
+  const diffMinutes = Math.round(diffMs / 60_000);
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 export function formatLongDisplayDate(date = new Date()) {

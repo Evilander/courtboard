@@ -11,6 +11,7 @@ import {
   getIdleTimeoutMinutes,
   getResolvedDatabasePath,
   getSessionMaxAgeSeconds,
+  getUploadMaxBytes,
 } from "@/lib/env";
 import { hasRequiredRole } from "@/lib/auth/rbac";
 import { SCREEN_ONLINE_WINDOW_MS } from "@/lib/time";
@@ -36,7 +37,7 @@ export default async function SettingsPage() {
       value: `${Math.round(getSessionMaxAgeSeconds() / 60)} minutes`,
     },
     {
-      label: "Idle Timeout",
+      label: "Idle Timeout Target",
       value: `${getIdleTimeoutMinutes()} minutes`,
     },
     {
@@ -50,6 +51,10 @@ export default async function SettingsPage() {
     {
       label: "Screen Offline Threshold",
       value: `${Math.round(SCREEN_ONLINE_WINDOW_MS / 60_000)} minutes`,
+    },
+    {
+      label: "Upload Limit",
+      value: `${Math.round(getUploadMaxBytes() / (1024 * 1024))} MB`,
     },
     {
       label: "SQLite File",
@@ -95,13 +100,18 @@ export default async function SettingsPage() {
         <CardContent className="space-y-4 text-sm text-stone-300">
           <div className="flex flex-wrap gap-2">
             <Badge variant="success">SSE enabled</Badge>
-            <Badge variant="success">Service worker registered</Badge>
+            <Badge variant="success">Display offline cache enabled</Badge>
             <Badge variant="success">SQLite + Drizzle</Badge>
           </div>
           <p>
             Use the Screens page to copy live display URLs for each Raspberry Pi.
             Emergency alerts publish immediately across the in-memory event bus
             and render as a full-screen takeover on every targeted display.
+          </p>
+          <p>
+            Health endpoints are available at <code>/api/status</code> and{" "}
+            <code>/api/ready</code>. Use the readiness endpoint for load balancer,
+            Docker, or reverse-proxy checks.
           </p>
         </CardContent>
       </Card>

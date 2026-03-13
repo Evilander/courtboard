@@ -1,46 +1,43 @@
 import { LoginForm } from "@/components/auth/login-form";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: {
-    callbackUrl?: string;
-  };
+  searchParams?: Promise<{
+    callbackUrl?: string | string[];
+    reason?: string | string[];
+  }>;
 }) {
-  const raw = searchParams?.callbackUrl || "/dashboard";
+  const resolvedSearchParams = await searchParams;
+  const rawCallbackUrl = resolvedSearchParams?.callbackUrl;
+  const rawReason = resolvedSearchParams?.reason;
+  const raw = Array.isArray(rawCallbackUrl)
+    ? rawCallbackUrl[0] ?? "/dashboard"
+    : rawCallbackUrl ?? "/dashboard";
+  const reason = Array.isArray(rawReason) ? rawReason[0] ?? null : rawReason ?? null;
   const callbackUrl = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/dashboard";
+  const idleTimeoutNotice =
+    reason === "idle"
+      ? "Your session ended after inactivity. Sign in again to continue."
+      : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-stone-950/40">
-          <p className="text-sm uppercase tracking-[0.3em] text-amber-300">
-            Secure Admin Access
-          </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white">
-            Sign in to manage courthouse screens.
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-300 sm:text-base">
-            CourtBoard protects administrative workflows with role-based access,
-            TOTP multi-factor authentication, account lockout rules, and audit
-            trails for every sign-in attempt.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {[
-              "JWT-backed sessions with enforced idle timeout",
-              "Rate limiting and CSRF checks on privileged routes",
-              "SQLite audit trail for successful and failed sign-ins",
-              "Seeded admin account for initial system bring-up",
-            ].map((feature) => (
-              <div
-                key={feature}
-                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-stone-200"
-              >
-                {feature}
-              </div>
-            ))}
+      <div className="w-full max-w-md space-y-6">
+        {idleTimeoutNotice ? (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+            {idleTimeoutNotice}
           </div>
-        </section>
+        ) : null}
+
+        <div className="text-center">
+          <p className="text-sm uppercase tracking-[0.3em] text-amber-300">
+            CourtBoard
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">
+            Admin Sign-In
+          </h1>
+        </div>
 
         <LoginForm callbackUrl={callbackUrl} />
       </div>
