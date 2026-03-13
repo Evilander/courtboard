@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 24 24 27;
+  --foreground: 250 250 249;
+}
+
+body {
+  min-height: 100vh;
+  color: rgb(var(--foreground));
+  background:
+    radial-gradient(circle at top, rgba(251, 191, 36, 0.08), transparent 30%),
+    linear-gradient(180deg, #111111 0%, #09090b 100%);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-stone-800;
+  }
+
+  a {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950;
+  }
+
+  .display-mode {
+    overflow: hidden;
+    background: #050608;
+  }
+}
