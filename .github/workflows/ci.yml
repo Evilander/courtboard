@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       AUTH_SECRET: test-auth-secret-for-ci-only
       AUTH_URL: http://127.0.0.1:3010

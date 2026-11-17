@@ -45,3 +45,15 @@ public/uploads/*
 # test artifacts
 playwright-report/
 test-results/
+
+# local agent and planning files
+CLAUDE.md
+AGENTS.md
+CODEX.md
+codex.md
+.claude/
+.codex/
+.agents/
+docs/superpowers/
+notes/
+todos/
